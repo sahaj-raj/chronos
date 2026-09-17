@@ -5,10 +5,11 @@ import { ComparisonEngine, ComparisonPicker } from './components/ComparisonEngin
 import { VerticalTimeline } from './components/VerticalTimeline';
 import { EventDetailDrawer } from './components/EventDetailDrawer';
 import { fetchTimelines, fetchTimelineDetail } from './services/api';
+import { DEFAULT_TIMELINES } from './data/defaultTimelines';
 import type { HistoricalTimeline, HistoricalEvent } from './types/timeline';
 
 export function App() {
-  const [timelines, setTimelines] = useState<HistoricalTimeline[]>([]);
+  const [timelines, setTimelines] = useState<HistoricalTimeline[]>(DEFAULT_TIMELINES);
   const [activeTimeline, setActiveTimeline] = useState<HistoricalTimeline | null>(null);
   const [selectedEvent, setSelectedEvent] = useState<HistoricalEvent | null>(null);
   const [isCompareOpen, setIsCompareOpen] = useState<boolean>(false);
@@ -21,7 +22,10 @@ export function App() {
   useEffect(() => {
     fetchTimelines().then((data) => {
       if (data && data.length > 0) {
-        setTimelines(data);
+        setTimelines((prev) => {
+          const backendIds = new Set(data.map((d) => d.slug || d.id));
+          return [...data, ...prev.filter((p) => !backendIds.has(p.slug || p.id))];
+        });
 
         // If URL has ?t=slug, load that timeline immediately
         const params = new URLSearchParams(window.location.search);

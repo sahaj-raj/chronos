@@ -47,14 +47,18 @@ public class ChroniclesApplication {
      * CORS configuration reading allowed frontend URL from environment variable.
      */
     @Bean
-    public WebMvcConfigurer corsConfigurer(@Value("${cors.allowed-origins:${FRONTEND_URL:http://localhost:5173}}") String frontendUrl) {
+    public WebMvcConfigurer corsConfigurer(@Value("${cors.allowed-origins:${FRONTEND_URL:}}") String frontendUrl) {
         return new WebMvcConfigurer() {
             @Override
             public void addCorsMappings(CorsRegistry registry) {
-                registry.addMapping("/**")
-                        .allowedOrigins(frontendUrl.split(","))
+                var mapping = registry.addMapping("/**")
                         .allowedMethods("GET", "POST", "PUT", "DELETE", "OPTIONS")
                         .allowedHeaders("*");
+                if (frontendUrl != null && !frontendUrl.isBlank() && !frontendUrl.equals("*")) {
+                    mapping.allowedOrigins(frontendUrl.split(","));
+                } else {
+                    mapping.allowedOriginPatterns("*");
+                }
             }
         };
     }

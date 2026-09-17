@@ -79,25 +79,37 @@ export const MasterRoadmap: React.FC<MasterRoadmapProps> = ({
       id: 'ANCIENT',
       name: 'Ancient India',
       span: '3300 BCE – 550 CE',
-      matchCategory: (cat: string) => cat.toLowerCase().includes('ancient') && !cat.toLowerCase().includes('world'),
+      matchCategory: (cat?: string) => {
+        const c = (cat || '').toLowerCase();
+        return (c.includes('ancient') || c.includes('indus') || c.includes('vedic') || c.includes('maurya') || c.includes('gupta')) && !c.includes('world');
+      },
     },
     {
       id: 'MEDIEVAL',
       name: 'Medieval India',
       span: '848 CE – 1818 CE',
-      matchCategory: (cat: string) => cat.toLowerCase().includes('medieval'),
+      matchCategory: (cat?: string) => {
+        const c = (cat || '').toLowerCase();
+        return c.includes('medieval') || c.includes('mughal') || c.includes('chola') || c.includes('maratha') || c.includes('sultanate') || c.includes('vijayanagara');
+      },
     },
     {
       id: 'MODERN',
       name: 'Modern & Independent India',
       span: '1757 CE – Present',
-      matchCategory: (cat: string) => cat.toLowerCase().includes('modern'),
+      matchCategory: (cat?: string) => {
+        const c = (cat || '').toLowerCase();
+        return c.includes('modern') || c.includes('british') || c.includes('freedom') || c.includes('independence') || c.includes('republic') || c.includes('struggle');
+      },
     },
     {
       id: 'WORLD',
       name: 'World Civilizations & Contemporaries',
-      span: '3500 BCE – 1991 CE',
-      matchCategory: (cat: string) => cat.toLowerCase().includes('world'),
+      span: '3500 BCE – Present',
+      matchCategory: (cat?: string) => {
+        const c = (cat || '').toLowerCase();
+        return c.includes('world') || (!c.includes('ancient') && !c.includes('medieval') && !c.includes('modern') && !c.includes('india'));
+      },
     },
   ];
 
@@ -113,11 +125,12 @@ export const MasterRoadmap: React.FC<MasterRoadmapProps> = ({
 
     if (!matchesSearch) return false;
 
+    const cat = (t.category || (t as any).topic || t.title || '').toLowerCase();
     if (selectedCategory === 'ALL') return true;
-    if (selectedCategory === 'ANCIENT') return t.category.toLowerCase().includes('ancient') && !t.category.toLowerCase().includes('world');
-    if (selectedCategory === 'MEDIEVAL') return t.category.toLowerCase().includes('medieval');
-    if (selectedCategory === 'MODERN') return t.category.toLowerCase().includes('modern');
-    if (selectedCategory === 'WORLD') return t.category.toLowerCase().includes('world');
+    if (selectedCategory === 'ANCIENT') return (cat.includes('ancient') || cat.includes('indus') || cat.includes('vedic') || cat.includes('maurya') || cat.includes('gupta')) && !cat.includes('world');
+    if (selectedCategory === 'MEDIEVAL') return cat.includes('medieval') || cat.includes('mughal') || cat.includes('chola') || cat.includes('maratha') || cat.includes('sultanate') || cat.includes('vijayanagara');
+    if (selectedCategory === 'MODERN') return cat.includes('modern') || cat.includes('british') || cat.includes('freedom') || cat.includes('independence') || cat.includes('republic') || cat.includes('struggle');
+    if (selectedCategory === 'WORLD') return cat.includes('world') || (!cat.includes('ancient') && !cat.includes('medieval') && !cat.includes('modern') && !cat.includes('india'));
     return true;
   });
 
@@ -188,7 +201,7 @@ export const MasterRoadmap: React.FC<MasterRoadmapProps> = ({
         <div className="w-full space-y-12">
           {eraGroups.map((group) => {
             const groupTimelines = filteredTimelines
-              .filter((t) => group.matchCategory(t.category))
+              .filter((t) => group.matchCategory(t.category || (t as any).topic || t.title))
               .sort((a, b) => getTimelineStartYear(a) - getTimelineStartYear(b));
 
             if (groupTimelines.length === 0) return null;
@@ -251,31 +264,20 @@ export const MasterRoadmap: React.FC<MasterRoadmapProps> = ({
                                     {cleanTitle}
                                   </h3>
                                   <span className="text-[11px] font-mono text-[#52525c] group-hover:text-[#888898] transition-colors mt-0.5">
-                                    {eventCount} milestones {timeline.region ? `• ${timeline.region}` : ''}
+                                    {eventCount} key milestones
                                   </span>
                                 </div>
                               ) : null}
                             </div>
 
-                            {/* Dotted Connector Line (Left) */}
-                            <div className="w-[7%] flex items-center justify-end">
-                              {isLeft ? (
-                                <div className="w-full border-t border-dotted border-[#2a2a38]" />
-                              ) : null}
-                            </div>
-
-                            {/* Center Year Button */}
-                            <div className="shrink-0 z-10 mx-2">
-                              <span className="px-3.5 py-1 rounded-full bg-[#0d0d12] border border-[#22222e] text-[#d4d4d8] text-xs font-mono font-medium shadow-md shadow-black/80 whitespace-nowrap">
+                            {/* Center: Year Node on Central Spine */}
+                            <div className="w-[14%] flex items-center justify-center relative z-10">
+                              <div
+                                onClick={() => onSelectTimeline(timeline.slug || timeline.id)}
+                                className="px-3 py-1 rounded-full bg-[#0d0d12] hover:bg-[#15151c] border border-[#22222d] hover:border-[#444458] text-[11px] font-mono font-medium text-[#d4d4d8] hover:text-white shadow-md cursor-pointer transition-all whitespace-nowrap select-none"
+                              >
                                 {badgeYear}
-                              </span>
-                            </div>
-
-                            {/* Dotted Connector Line (Right) */}
-                            <div className="w-[7%] flex items-center justify-start">
-                              {!isLeft ? (
-                                <div className="w-full border-t border-dotted border-[#2a2a38]" />
-                              ) : null}
+                              </div>
                             </div>
 
                             {/* Right Side: Topic text OR Empty */}
@@ -289,7 +291,7 @@ export const MasterRoadmap: React.FC<MasterRoadmapProps> = ({
                                     {cleanTitle}
                                   </h3>
                                   <span className="text-[11px] font-mono text-[#52525c] group-hover:text-[#888898] transition-colors mt-0.5">
-                                    {eventCount} milestones {timeline.region ? `• ${timeline.region}` : ''}
+                                    {eventCount} key milestones
                                   </span>
                                 </div>
                               ) : null}
@@ -297,12 +299,15 @@ export const MasterRoadmap: React.FC<MasterRoadmapProps> = ({
                           </div>
 
                           {/* MOBILE LAYOUT (< md) */}
-                          <div className="md:hidden flex items-center w-full">
-                            {/* Year Badge */}
-                            <div className="shrink-0 z-10">
-                              <span className="px-2.5 py-0.5 rounded-full bg-[#0d0d12] border border-[#22222e] text-[#d4d4d8] text-[10px] font-mono font-medium shadow-sm whitespace-nowrap">
+                          <div className="md:hidden flex items-center w-full pl-6 pr-2">
+                            {/* Node on mobile spine */}
+                            <div className="w-12 flex justify-center shrink-0 z-10">
+                              <div
+                                onClick={() => onSelectTimeline(timeline.slug || timeline.id)}
+                                className="px-2 py-0.5 rounded-full bg-[#0d0d12] border border-[#22222d] text-[10px] font-mono text-[#d4d4d8] whitespace-nowrap cursor-pointer"
+                              >
                                 {badgeYear}
-                              </span>
+                              </div>
                             </div>
 
                             {/* Dotted Connector */}
@@ -329,6 +334,18 @@ export const MasterRoadmap: React.FC<MasterRoadmapProps> = ({
               </section>
             );
           })}
+
+          {/* Empty or Searching State */}
+          {eraGroups.every((g) => filteredTimelines.filter((t) => g.matchCategory(t.category || (t as any).topic || t.title)).length === 0) && (
+            <div className="text-center py-16 px-4">
+              <p className="text-[#a1a1aa] text-sm mb-2">
+                {filterQuery ? `No historical timelines found for "${filterQuery}".` : 'Loading historical timelines...'}
+              </p>
+              <p className="text-xs text-[#52525c]">
+                Connecting to Chronos Timeline Engine...
+              </p>
+            </div>
+          )}
         </div>
       </div>
 
