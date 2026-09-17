@@ -1,0 +1,94 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&family=Newsreader:ital,opsz,wght@0,6..72,400;0,6..72,500;0,6..72,600;1,6..72,400&family=JetBrains+Mono:wght@400;500&display=swap');
+@import "tailwindcss";
+
+@layer base {
+  :root {
+    --bg-primary: #000000;
+    --bg-card: #0c0c0e;
+    --border-subtle: #1a1a1f;
+    --text-title: #f4f4f6;
+    --text-body: #8e8e98;
+    --text-muted: #52525c;
+  }
+
+  body {
+    background-color: #000000;
+    color: #8e8e98;
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+    overflow-x: hidden;
+    margin: 0;
+    padding: 0;
+  }
+
+  h1, h2, h3, .font-serif-editorial {
+    font-family: 'Newsreader', Georgia, serif;
+    letter-spacing: -0.015em;
+  }
+
+  .font-mono-tracked {
+    font-family: 'JetBrains Mono', monospace;
+    letter-spacing: 0.18em;
+  }
+}
+
+/* Minimal pure dark scrollbar */
+::-webkit-scrollbar {
+  width: 5px;
+  height: 5px;
+}
+::-webkit-scrollbar-track {
+  background: #000000;
+}
+::-webkit-scrollbar-thumb {
+  background: #1a1a20;
+  border-radius: 2px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #282830;
+}
+
+/* Apple-Grade Smooth Reveal Animations (60-120Hz GPU Compositor) */
+.timeline-reveal {
+  opacity: 0;
+  transform: translate3d(var(--reveal-x, 0px), 20px, 0) scale(0.975);
+  transition: opacity 0.4s ease-out,
+              transform 0.4s ease-out;
+  will-change: transform, opacity;
+}
+
+.timeline-reveal.is-revealed {
+  opacity: 1;
+  transform: translate3d(0, 0, 0) scale(1);
+  transition: opacity 0.75s cubic-bezier(0.16, 1, 0.3, 1),
+              transform 0.75s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.date-reveal {
+  opacity: 0;
+  transform: translate3d(var(--date-x, 0px), 14px, 0);
+  transition: opacity 0.35s ease-out,
+              transform 0.35s ease-out;
+  will-change: transform, opacity;
+}
+
+.date-reveal.is-revealed {
+  opacity: 1;
+  transform: translate3d(0, 0, 0);
+  transition: opacity 0.7s cubic-bezier(0.16, 1, 0.3, 1) 0.04s,
+              transform 0.7s cubic-bezier(0.16, 1, 0.3, 1) 0.04s;
+}
+
+.node-reveal {
+  opacity: 0;
+  transform: scale(0.4);
+  transition: opacity 0.35s ease-out,
+              transform 0.35s ease-out;
+  will-change: transform, opacity;
+}
+
+.node-reveal.is-revealed {
+  opacity: 1;
+  transform: scale(1);
+  transition: opacity 0.6s cubic-bezier(0.16, 1, 0.3, 1) 0.06s,
+              transform 0.6s cubic-bezier(0.16, 1, 0.3, 1) 0.06s;
+}

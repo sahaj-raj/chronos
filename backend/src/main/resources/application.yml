@@ -1,0 +1,71 @@
+server:
+  port: ${PORT:${SERVER_PORT:8080}}
+
+spring:
+  application:
+    name: chronicles-backend
+  profiles:
+    active: ${SPRING_PROFILES_ACTIVE:prod}
+
+# ==============================================================================
+# Production Profile (Default) — Requires PostgreSQL & Fails Loudly if Missing
+# ==============================================================================
+---
+spring:
+  config:
+    activate:
+      on-profile: prod
+
+  datasource:
+    # Requires DATABASE_URL from Railway/Postgres — no fallback, fails loudly on startup if missing
+    url: ${DATABASE_URL}
+    username: ${PGUSER:${DATABASE_USERNAME:${SPRING_DATASOURCE_USERNAME:postgres}}}
+    password: ${PGPASSWORD:${DATABASE_PASSWORD:${SPRING_DATASOURCE_PASSWORD:}}}
+    driver-class-name: org.postgresql.Driver
+
+  jpa:
+    database-platform: org.hibernate.dialect.PostgreSQLDialect
+    hibernate:
+      ddl-auto: update
+    show-sql: false
+
+# ==============================================================================
+# Local Development Profile — Explicit Opt-In Only (SPRING_PROFILES_ACTIVE=local)
+# ==============================================================================
+---
+spring:
+  config:
+    activate:
+      on-profile: local
+
+  datasource:
+    url: jdbc:h2:file:./data/chronos;AUTO_SERVER=TRUE;DB_CLOSE_DELAY=-1;MODE=PostgreSQL
+    username: sa
+    password: ""
+    driver-class-name: org.h2.Driver
+
+  jpa:
+    database-platform: org.hibernate.dialect.H2Dialect
+    hibernate:
+      ddl-auto: update
+    show-sql: false
+
+  h2:
+    console:
+      enabled: true
+      path: /h2-console
+      settings:
+        web-allow-others: true
+
+# ==============================================================================
+# Common Application Configuration
+# ==============================================================================
+---
+cors:
+  allowed-origins: ${FRONTEND_URL:http://localhost:5173}
+
+gemini:
+  api-key: ${GEMINI_API_KEY:}
+  model: ${GEMINI_MODEL:gemini-2.5-flash}
+  base-url: https://generativelanguage.googleapis.com/v1beta
+  timeout-seconds: 25

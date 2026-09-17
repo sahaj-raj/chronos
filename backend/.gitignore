@@ -1,0 +1,18 @@
+# Secrets
+.env
+.env.local
+*.env
+
+# Local Database
+data/
+*.mv.db
+*.trace.db
+
+# Maven
+target/
+*.class
+
+# IDE
+.idea/
+*.iml
+.vscode/
