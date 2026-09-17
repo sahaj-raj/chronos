@@ -60,12 +60,42 @@ public class ChroniclesApplication {
     }
 
     /**
-     * Sanitizes database URL injected by Railway (e.g. postgresql:// -> jdbc:postgresql://)
-     * or builds JDBC URL from PGHOST / PGPORT / PGDATABASE.
+     * Sanitizes database URL injected by Railway (e.g. postgresql://user:pass@host:port/db -> jdbc:postgresql://host:port/db)
+     * and extracts username/password for the PostgreSQL JDBC driver.
      */
     private static void configureDatabaseUrlForRailway() {
         String dbUrl = System.getenv("DATABASE_URL");
         if (dbUrl != null && !dbUrl.isBlank()) {
+            try {
+                String raw = dbUrl.startsWith("jdbc:") ? dbUrl.substring(5) : dbUrl;
+                java.net.URI uri = new java.net.URI(raw);
+                String host = uri.getHost();
+                if (host != null) {
+                    int port = uri.getPort() > 0 ? uri.getPort() : 5432;
+                    String path = uri.getPath() != null ? uri.getPath() : "/railway";
+                    String query = uri.getQuery() != null ? "?" + uri.getQuery() : "";
+
+                    String cleanJdbcUrl = String.format("jdbc:postgresql://%s:%d%s%s", host, port, path, query);
+                    System.setProperty("DATABASE_URL", cleanJdbcUrl);
+                    System.setProperty("spring.datasource.url", cleanJdbcUrl);
+
+                    String userInfo = uri.getUserInfo();
+                    if (userInfo != null && userInfo.contains(":")) {
+                        String[] creds = userInfo.split(":", 2);
+                        if (System.getenv("PGUSER") == null && System.getProperty("PGUSER") == null) {
+                            System.setProperty("PGUSER", creds[0]);
+                        }
+                        if (System.getenv("PGPASSWORD") == null && System.getProperty("PGPASSWORD") == null) {
+                            System.setProperty("PGPASSWORD", creds[1]);
+                        }
+                    }
+                    log.info("Configured JDBC DataSource URL from Railway DATABASE_URL: jdbc:postgresql://{}:{}{}", host, port, path);
+                    return;
+                }
+            } catch (Exception e) {
+                log.warn("Could not parse DATABASE_URL as URI: {}. Applying basic jdbc prefix.", e.getMessage());
+            }
+
             if (!dbUrl.startsWith("jdbc:")) {
                 String jdbcUrl = "jdbc:" + dbUrl;
                 System.setProperty("DATABASE_URL", jdbcUrl);
