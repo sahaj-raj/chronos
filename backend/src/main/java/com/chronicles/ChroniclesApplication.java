@@ -65,14 +65,21 @@ public class ChroniclesApplication {
      */
     private static void configureDatabaseUrlForRailway() {
         String dbUrl = System.getenv("DATABASE_URL");
-        if (dbUrl != null && !dbUrl.isBlank()) {
+        if (dbUrl == null || dbUrl.isBlank() || dbUrl.contains("${")) {
+            dbUrl = System.getenv("DATABASE_PRIVATE_URL");
+        }
+        if (dbUrl == null || dbUrl.isBlank() || dbUrl.contains("${")) {
+            dbUrl = System.getenv("DATABASE_PUBLIC_URL");
+        }
+
+        if (dbUrl != null && !dbUrl.isBlank() && !dbUrl.contains("${")) {
             try {
                 String raw = dbUrl.startsWith("jdbc:") ? dbUrl.substring(5) : dbUrl;
                 java.net.URI uri = new java.net.URI(raw);
                 String host = uri.getHost();
                 if (host != null) {
                     int port = uri.getPort() > 0 ? uri.getPort() : 5432;
-                    String path = uri.getPath() != null ? uri.getPath() : "/railway";
+                    String path = uri.getPath() != null && !uri.getPath().isEmpty() ? uri.getPath() : "/railway";
                     String query = uri.getQuery() != null ? "?" + uri.getQuery() : "";
 
                     String cleanJdbcUrl = String.format("jdbc:postgresql://%s:%d%s%s", host, port, path, query);
@@ -102,16 +109,17 @@ public class ChroniclesApplication {
                 System.setProperty("spring.datasource.url", jdbcUrl);
                 log.info("Configured JDBC DataSource URL from Railway DATABASE_URL");
             }
-        } else {
-            String pgHost = System.getenv("PGHOST");
-            if (pgHost != null && !pgHost.isBlank()) {
-                String pgPort = System.getenv().getOrDefault("PGPORT", "5432");
-                String pgDb = System.getenv().getOrDefault("PGDATABASE", "railway");
-                String jdbcUrl = String.format("jdbc:postgresql://%s:%s/%s", pgHost, pgPort, pgDb);
-                System.setProperty("DATABASE_URL", jdbcUrl);
-                System.setProperty("spring.datasource.url", jdbcUrl);
-                log.info("Constructed JDBC DataSource URL from PGHOST/PGPORT/PGDATABASE: {}", jdbcUrl);
-            }
+            return;
+        }
+
+        String pgHost = System.getenv("PGHOST");
+        if (pgHost != null && !pgHost.isBlank() && !pgHost.contains("${")) {
+            String pgPort = System.getenv().getOrDefault("PGPORT", "5432");
+            String pgDb = System.getenv().getOrDefault("PGDATABASE", "railway");
+            String jdbcUrl = String.format("jdbc:postgresql://%s:%s/%s", pgHost, pgPort, pgDb);
+            System.setProperty("DATABASE_URL", jdbcUrl);
+            System.setProperty("spring.datasource.url", jdbcUrl);
+            log.info("Constructed JDBC DataSource URL from PGHOST/PGPORT/PGDATABASE: {}", jdbcUrl);
         }
     }
 
