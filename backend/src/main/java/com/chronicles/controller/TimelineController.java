@@ -62,9 +62,7 @@ public class TimelineController {
     @PostMapping(value = {"/api/v1/timelines/generate", "/api/timeline"})
     public ResponseEntity<?> generateTimeline(@RequestBody(required = false) TimelineRequest request) {
         try {
-            String topic = (request != null && request.topic() != null && !request.topic().isBlank())
-                    ? request.topic()
-                    : "general-history";
+            String topic = (request != null) ? request.effectiveTopic() : "general-history";
 
             TimelineResponse response = timelineService.generateTimeline(topic);
             return ResponseEntity.status(HttpStatus.CREATED).body(response);
@@ -72,6 +70,11 @@ public class TimelineController {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(Map.of(
                 "error", "Bad Request",
                 "message", e.getMessage()
+            ));
+        } catch (IllegalStateException e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(Map.of(
+                "error", "Synthesis Failed",
+                "message", e.getMessage() != null ? e.getMessage() : "Failed to synthesize timeline"
             ));
         } catch (Exception e) {
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(Map.of(

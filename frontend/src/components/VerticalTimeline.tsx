@@ -8,21 +8,37 @@ interface TimelineCardProps {
   position?: 'left' | 'right';
 }
 
+export function getCardDateDisplay(event: HistoricalEvent): string {
+  const spineYear = formatSpineYear(event);
+  const raw = (event.displayDate || (event as any).date || '').trim();
+  if (!raw) return spineYear;
+  // If raw date already contains year digits, return it
+  if (/\d{1,4}/.test(raw)) {
+    return raw;
+  }
+  return `${raw} • ${spineYear}`;
+}
+
 export const TimelineCard: React.FC<TimelineCardProps> = ({
   event,
   onSelect,
 }) => {
+  const dateDisplay = getCardDateDisplay(event);
+
   return (
     <article
       onClick={() => onSelect(event)}
       className="w-full bg-[#0b0b0e] hover:bg-[#111116] border border-[#181820] hover:border-[#2e2e3e] rounded-xl p-4 md:p-4.5 transition-all duration-200 cursor-pointer group relative text-left shadow-md shadow-black/50 hover:shadow-black/80 hover:-translate-y-0.5"
     >
-      <div className="flex items-center justify-between gap-2 mb-2">
-        <span className="font-mono text-[10px] tracking-wider text-[#636370] uppercase font-medium">
+      {/* Top Header: Category at top-left, Date badge with year at top-right inside the event card */}
+      <div className="flex items-center justify-between gap-2 mb-2.5">
+        <span className="font-mono text-[10px] tracking-wider text-[#717182] uppercase font-medium truncate max-w-[50%]">
           {event.category}
         </span>
-        <span className="md:hidden font-mono text-[11px] text-[#9ca3af] font-medium">
-          {event.displayDate}
+
+        {/* Top-Right Date Badge with Year */}
+        <span className="inline-flex items-center px-2.5 py-0.5 rounded-md text-[11px] font-mono font-semibold bg-[#14141e] text-[#f4f4f8] border border-[#2b2b3c] shadow-sm tracking-tight shrink-0">
+          {dateDisplay}
         </span>
       </div>
 
@@ -36,7 +52,7 @@ export const TimelineCard: React.FC<TimelineCardProps> = ({
 
       <div className="flex items-center justify-between text-[11px] pt-2 border-t border-[#14141a]">
         <span className="text-[#555562] truncate max-w-[70%] font-sans">
-          {event.era}
+          {event.location || event.era}
         </span>
         <span className="text-[#454552] group-hover:text-[#9e9eb0] transition-colors text-xs font-mono">
           view →
@@ -52,23 +68,33 @@ export function formatSpineYear(event: HistoricalEvent): string {
       return `${Math.abs(event.startYear)} BCE`;
     }
     if (event.endYear != null && event.endYear !== event.startYear) {
-      const endStr = event.endYear < 0 ? `${Math.abs(event.endYear)} BCE` : `${event.endYear}`;
+      const endStr = event.endYear < 0 ? `${Math.abs(event.endYear)} BCE` : `${event.endYear} CE`;
       return `${event.startYear}–${endStr}`;
     }
-    return `${event.startYear}`;
+    return `${event.startYear} CE`;
   }
   if (event.year != null) {
-    return event.year < 0 ? `${Math.abs(event.year)} BCE` : `${event.year}`;
+    return event.year < 0 ? `${Math.abs(event.year)} BCE` : `${event.year} CE`;
   }
-  const match = event.displayDate.match(/(-?\d{1,4}(\s*(BCE|BC|CE|AD))?)/i);
-  return match ? match[0] : event.displayDate;
+  const rawDate = event.displayDate || (event as any).date;
+  if (rawDate) {
+    const match = String(rawDate).match(/(-?\d{1,4})\s*(BCE|CE|BC|AD)?/i);
+    if (match) {
+      const num = parseInt(match[1], 10);
+      const era = match[2] ? match[2].toUpperCase() : (num < 0 ? 'BCE' : 'CE');
+      const cleanEra = (era === 'BC' || era === 'BCE') ? 'BCE' : 'CE';
+      return `${Math.abs(num)} ${cleanEra}`;
+    }
+    return String(rawDate);
+  }
+  return '—';
 }
 
 export const TimelineNode: React.FC<{ event: HistoricalEvent }> = ({ event }) => {
   const yearText = formatSpineYear(event);
   return (
     <div className="relative flex items-center justify-center pointer-events-none select-none">
-      <span className="px-3.5 py-1.5 md:px-4 md:py-1.5 rounded-full bg-[#0d0d12] border border-[#2b2b3a] text-[#f4f4f8] text-xs md:text-[13px] font-mono font-semibold shadow-xl shadow-black/80 ring-4 ring-black whitespace-nowrap tracking-wide">
+      <span className="w-[88px] h-[30px] flex items-center justify-center text-center rounded-full bg-[#0d0d12] border border-[#2b2b3a] text-[#f4f4f8] text-xs md:text-[13px] font-mono font-semibold shadow-xl shadow-black/80 ring-4 ring-black whitespace-nowrap tracking-wide tabular-nums">
         {yearText}
       </span>
     </div>

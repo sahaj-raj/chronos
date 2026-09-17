@@ -26,11 +26,31 @@ public class GeminiService {
             RestClient restClient,
             ObjectMapper objectMapper,
             @Value("${gemini.api-key:${GEMINI_API_KEY:}}") String apiKey,
-            @Value("${gemini.model:${GEMINI_MODEL:gemini-2.5-flash}}") String model) {
+            @Value("${gemini.model:${GEMINI_MODEL:gemini-3.1-flash-lite}}") String model) {
         this.restClient = restClient;
         this.objectMapper = objectMapper;
         this.apiKey = apiKey != null ? apiKey.trim() : "";
-        this.model = model != null ? model.trim() : "gemini-2.5-flash";
+        this.model = model != null && !model.trim().isBlank() ? model.trim() : "gemini-3.1-flash-lite";
+        // Startup credential diagnosis — never logs the key itself
+        try {
+            String loadedKey = this.apiKey;
+            boolean isPlaceholder = loadedKey.equalsIgnoreCase("your_gemini_api_key_here");
+            boolean hasRawWhitespace = (apiKey != null && !apiKey.equals(loadedKey));
+            java.security.MessageDigest digest = java.security.MessageDigest.getInstance("SHA-256");
+            byte[] hashBytes = digest.digest(loadedKey.getBytes(java.nio.charset.StandardCharsets.UTF_8));
+            StringBuilder sb = new StringBuilder();
+            for (byte b : hashBytes) sb.append(String.format("%02x", b));
+            String fingerprint = sb.substring(0, 8);
+            log.info("[KEY-DIAG] api-key-present={} | is-placeholder={} | raw-whitespace-stripped={} | length={} | sha256-first8={} | model={}",
+                    !loadedKey.isBlank(), isPlaceholder, hasRawWhitespace, loadedKey.length(), fingerprint, this.model);
+            // Identify which source Spring resolved gemini.api-key from
+            String sysPropKey = System.getProperty("GEMINI_API_KEY");
+            String envKey = System.getenv("GEMINI_API_KEY");
+            log.info("[KEY-DIAG] source-check: system.property.present={} | env.var.present={}",
+                    (sysPropKey != null && !sysPropKey.isBlank()), (envKey != null && !envKey.isBlank()));
+        } catch (Exception diagEx) {
+            log.warn("[KEY-DIAG] Fingerprint calculation failed: {}", diagEx.getMessage());
+        }
     }
 
     public boolean isConfigured() {
@@ -43,8 +63,9 @@ public class GeminiService {
      */
     public Optional<TimelineResponse> fetchDiscoveredAndRankedEvents(String topic) {
         if (!isConfigured()) {
-            log.warn("Gemini API key is not configured. Falling back to offline synthesis for topic '{}'", topic);
-            return Optional.of(generateOfflineFallback(topic));
+            String msg = "Gemini API key is not configured (current key: '" + (apiKey.isBlank() ? "EMPTY" : apiKey) + "'). Please configure a valid GEMINI_API_KEY in .env";
+            log.error(msg);
+            throw new IllegalStateException(msg);
         }
 
         String prompt = buildStructuredPrompt(topic);
@@ -114,15 +135,17 @@ public class GeminiService {
                     .body(String.class);
 
             if (rawResponse == null || rawResponse.isBlank()) {
-                log.warn("Gemini returned empty HTTP body for topic '{}'", topic);
-                return Optional.of(generateOfflineFallback(topic));
+                String msg = String.format("Gemini returned empty HTTP body for topic '%s' using model [%s]", topic, model);
+                log.error(msg);
+                throw new IllegalStateException(msg);
             }
 
             JsonNode root = objectMapper.readTree(rawResponse);
             JsonNode textNode = root.at("/candidates/0/content/parts/0/text");
             if (textNode.isMissingNode() || textNode.asText().isBlank()) {
-                log.warn("Gemini response missing candidate text part. Raw payload: {}", rawResponse);
-                return Optional.of(generateOfflineFallback(topic));
+                String msg = String.format("Gemini response missing candidate text part. Raw payload: %s", rawResponse);
+                log.error(msg);
+                throw new IllegalStateException(msg);
             }
 
             String jsonText = textNode.asText().trim();
@@ -138,9 +161,16 @@ public class GeminiService {
             TimelineResponse parsed = objectMapper.readValue(jsonText.trim(), TimelineResponse.class);
             return Optional.of(parsed);
 
+        } catch (org.springframework.web.client.RestClientResponseException respEx) {
+            String errorMsg = String.format("Gemini API error (HTTP %d): %s | Model: [%s]", 
+                    respEx.getStatusCode().value(), respEx.getResponseBodyAsString(), model);
+            log.error("Failed to query Gemini API for topic '{}': {}", topic, errorMsg);
+            throw new IllegalStateException(errorMsg, respEx);
+        } catch (IllegalStateException e) {
+            throw e;
         } catch (Exception e) {
-            log.error("Failed to query Gemini API for topic '{}': {}. Using offline fallback.", topic, e.getMessage());
-            return Optional.of(generateOfflineFallback(topic));
+            log.error("Failed to query Gemini API for topic '{}': {}", topic, e.getMessage(), e);
+            throw new IllegalStateException("Failed to query Gemini API: " + e.getMessage(), e);
         }
     }
 

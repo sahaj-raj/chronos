@@ -4,7 +4,7 @@ import { MasterRoadmap } from './components/MasterRoadmap';
 import { ComparisonEngine, ComparisonPicker } from './components/ComparisonEngine';
 import { VerticalTimeline } from './components/VerticalTimeline';
 import { EventDetailDrawer } from './components/EventDetailDrawer';
-import { fetchTimelines, fetchTimelineDetail } from './services/api';
+import { fetchTimelines, fetchTimelineDetail, generateTimelineApi } from './services/api';
 import { DEFAULT_TIMELINES } from './data/defaultTimelines';
 import type { HistoricalTimeline, HistoricalEvent } from './types/timeline';
 
@@ -13,6 +13,7 @@ export function App() {
   const [activeTimeline, setActiveTimeline] = useState<HistoricalTimeline | null>(null);
   const [selectedEvent, setSelectedEvent] = useState<HistoricalEvent | null>(null);
   const [isCompareOpen, setIsCompareOpen] = useState<boolean>(false);
+  const [isSynthesizing, setIsSynthesizing] = useState<boolean>(false);
   const [activeComparison, setActiveComparison] = useState<{
     timelineA: HistoricalTimeline;
     timelineB: HistoricalTimeline;
@@ -22,16 +23,39 @@ export function App() {
   useEffect(() => {
     fetchTimelines().then((data) => {
       if (data && data.length > 0) {
+        // Filter out dummy/placeholder umbrella mock records
+        const validBackend = data.filter((t) => {
+          const slug = (t.slug || t.id || '').toLowerCase();
+          const title = (t.title || '').toLowerCase();
+          const desc = (t.description || '').toLowerCase();
+          return !(
+            slug === 'ancient-india' ||
+            slug === 'medieval-india' ||
+            slug === 'modern-india' ||
+            slug === 'general-history' ||
+            title === 'ancient india' ||
+            title === 'medieval india' ||
+            title === 'modern india' ||
+            title.startsWith('chronology of ancient india') ||
+            title.startsWith('chronology of medieval india') ||
+            title.startsWith('chronology of modern india') ||
+            title.startsWith('historical chronology for ancient india') ||
+            title.startsWith('historical chronology for medieval india') ||
+            title.startsWith('historical chronology for modern india') ||
+            desc.includes('foundational origins & formative period')
+          );
+        });
+
         setTimelines((prev) => {
-          const backendIds = new Set(data.map((d) => d.slug || d.id));
-          return [...data, ...prev.filter((p) => !backendIds.has(p.slug || p.id))];
+          const backendIds = new Set(validBackend.map((d) => d.slug || d.id));
+          return [...validBackend, ...prev.filter((p) => !backendIds.has(p.slug || p.id))];
         });
 
         // If URL has ?t=slug, load that timeline immediately
         const params = new URLSearchParams(window.location.search);
         const targetSlug = params.get('t');
         if (targetSlug) {
-          const matched = data.find((t) => t.slug === targetSlug || t.id === targetSlug);
+          const matched = validBackend.find((t) => t.slug === targetSlug || t.id === targetSlug);
           if (matched) {
             handleSelectTimeline(targetSlug);
           }
@@ -97,6 +121,33 @@ export function App() {
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
+  // Synthesize custom timeline with Gemini AI on demand
+  const handleSynthesize = async (query: string) => {
+    const trimmed = query.trim();
+    if (!trimmed || isSynthesizing) return;
+    setIsSynthesizing(true);
+    try {
+      const generated = await generateTimelineApi(trimmed);
+      if (generated) {
+        setTimelines((prev) => {
+          const exists = prev.some((p) => p.slug === generated.slug || p.id === generated.id);
+          return exists
+            ? prev.map((p) => (p.slug === generated.slug || p.id === generated.id ? generated : p))
+            : [generated, ...prev];
+        });
+        setActiveTimeline(generated);
+        const url = new URL(window.location.href);
+        url.searchParams.set('t', generated.slug || generated.id);
+        window.history.replaceState({}, '', url.toString());
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+      }
+    } catch (err) {
+      console.error('Failed to synthesize timeline:', err);
+    } finally {
+      setIsSynthesizing(false);
+    }
+  };
+
   return (
     <div className="min-h-screen bg-black text-[#8e8e98] flex flex-col font-sans overflow-x-hidden">
       {/* Main Container */}
@@ -116,6 +167,8 @@ export function App() {
             timelines={timelines}
             onSelectTimeline={handleSelectTimeline}
             onOpenComparisonPicker={() => setIsCompareOpen(true)}
+            onSynthesize={handleSynthesize}
+            isSynthesizing={isSynthesizing}
           />
         ) : (
           /* Single Timeline Detailed View */

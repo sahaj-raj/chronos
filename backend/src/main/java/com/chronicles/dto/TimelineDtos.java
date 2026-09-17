@@ -4,19 +4,36 @@ import com.chronicles.model.Source;
 import com.chronicles.model.TimelineEvent;
 import com.fasterxml.jackson.annotation.JsonAlias;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
+import com.fasterxml.jackson.annotation.JsonProperty;
 
 import java.util.List;
 import java.util.UUID;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
+// Shared compiled patterns for chronological year extraction
+final class DatePatterns {
+    /** Matches a 4-digit year (e.g. 2017, 1789, 3300). Used first to avoid
+     *  matching day-of-month in strings like "November 3, 2017". */
+    static final Pattern FOUR_DIGIT_YEAR = Pattern.compile("(\\d{4})");
+    /** Matches 1-3 digit numbers for ancient short years (250 BCE, 44 BCE). */
+    static final Pattern SHORT_YEAR      = Pattern.compile("(\\d{1,3})");
+    private DatePatterns() {}
+}
+
 public class TimelineDtos {
 
     @JsonIgnoreProperties(ignoreUnknown = true)
     public record TimelineRequest(
-        @JsonAlias({"query", "q"})
-        String topic
-    ) {}
+        @JsonProperty("topic") String topic,
+        @JsonProperty("query") String query
+    ) {
+        public String effectiveTopic() {
+            if (topic != null && !topic.isBlank()) return topic.trim();
+            if (query != null && !query.isBlank()) return query.trim();
+            return "general-history";
+        }
+    }
 
     @JsonIgnoreProperties(ignoreUnknown = true)
     public record SourceDto(
@@ -56,16 +73,33 @@ public class TimelineDtos {
             );
         }
 
+        /**
+         * Extracts a signed chronological year from a date string.
+         * Negative = BCE/BC, Positive = CE/AD.
+         *
+         * Strategy:
+         *  1. Look for a 4-digit year first (e.g. 2017, 1789, 3300).
+         *     This prevents matching day-of-month from dates like
+         *     "November 3, 2017" (should return 2017, not 3).
+         *  2. Fall back to 1-3 digit numbers for ancient short years
+         *     such as "250 BCE", "c. 44 BCE", "9 AD".
+         */
         public static int extractYear(String dateStr) {
             if (dateStr == null || dateStr.isBlank()) return 0;
             try {
-                Matcher m = Pattern.compile("(-?\\d{1,4})").matcher(dateStr);
+                String upper = dateStr.toUpperCase();
+                boolean isBce = upper.contains("BCE") || upper.contains("BC");
+                // Prefer 4-digit year: avoids matching day from "November 3, 2017"
+                Matcher m4 = DatePatterns.FOUR_DIGIT_YEAR.matcher(dateStr);
+                if (m4.find()) {
+                    int y = Integer.parseInt(m4.group(1));
+                    return isBce ? -Math.abs(y) : y;
+                }
+                // Short ancient years: "250 BCE", "c. 44 BCE"
+                Matcher m = DatePatterns.SHORT_YEAR.matcher(dateStr);
                 if (m.find()) {
                     int y = Integer.parseInt(m.group(1));
-                    if (dateStr.toUpperCase().contains("BCE") || dateStr.toUpperCase().contains("BC")) {
-                        return -Math.abs(y);
-                    }
-                    return y;
+                    return isBce ? -Math.abs(y) : y;
                 }
             } catch (Exception ignored) {}
             return 0;

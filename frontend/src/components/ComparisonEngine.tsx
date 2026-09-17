@@ -435,8 +435,21 @@ export const ComparisonPicker: React.FC<ComparisonPickerProps> = ({
     return indianTimelines[0]?.slug || indianTimelines[0]?.id || '';
   });
 
+  const findTimeline = (slugOrId: string) => {
+    return (
+      allTimelines.find((t) => (t.slug || t.id) === slugOrId) ||
+      allTimelines.find((t) => {
+        if (slugOrId === 'post-independence-india') return t.slug === 'post-independence-and-republic' || t.id === 'post-independence-and-republic';
+        if (slugOrId === 'post-independence-and-republic') return t.slug === 'post-independence-india' || t.id === 'post-independence-india';
+        if (slugOrId === 'modern-indian-history') return t.slug === 'indian-national-movement' || t.id === 'indian-national-movement';
+        if (slugOrId === 'indian-national-movement') return t.slug === 'modern-indian-history' || t.id === 'modern-indian-history';
+        return false;
+      })
+    );
+  };
+
   const getSmartWorldSlug = (indianSlug: string): string => {
-    const indianT = indianTimelines.find((t) => (t.slug || t.id) === indianSlug);
+    const indianT = findTimeline(indianSlug);
     if (indianT?.contemporaries && indianT.contemporaries.length > 0) {
       for (const contemp of indianT.contemporaries) {
         const matched = worldTimelines.find((w) => (w.slug || w.id) === contemp);
@@ -446,7 +459,7 @@ export const ComparisonPicker: React.FC<ComparisonPickerProps> = ({
     const fallbacks: Record<string, string> = {
       'indus-valley-civilization': 'mesopotamia',
       'vedic-period-and-mahajanapadas': 'ancient-china',
-      'buddhism-and-jainism': 'achaemenid-persia',
+      'buddhism-and-jainism': 'ancient-china',
       'mauryan-empire': 'ancient-greece',
       'gupta-empire': 'ancient-rome',
       'chola-dynasty': 'tang-and-song-china',
@@ -454,7 +467,9 @@ export const ComparisonPicker: React.FC<ComparisonPickerProps> = ({
       'mughal-empire': 'european-renaissance',
       'maratha-empire': 'french-revolution',
       'modern-indian-history': 'world-wars-era',
+      'indian-national-movement': 'world-wars-era',
       'post-independence-india': 'cold-war-space-race',
+      'post-independence-and-republic': 'cold-war-space-race',
     };
     if (fallbacks[indianSlug]) {
       const fallbackMatch = worldTimelines.find((w) => (w.slug || w.id) === fallbacks[indianSlug]);
@@ -477,8 +492,8 @@ export const ComparisonPicker: React.FC<ComparisonPickerProps> = ({
     }
   };
 
-  const timelineA = allTimelines.find((t) => (t.slug || t.id) === selectedSlugA) || currentTimeline;
-  const timelineB = allTimelines.find((t) => (t.slug || t.id) === selectedSlugB);
+  const timelineA = findTimeline(selectedSlugA) || currentTimeline;
+  const timelineB = findTimeline(selectedSlugB);
 
   const handleLaunch = () => {
     if (timelineA && timelineB) {
@@ -496,9 +511,17 @@ export const ComparisonPicker: React.FC<ComparisonPickerProps> = ({
     { title: 'Delhi Sultanate ↔ The Mongol Empire', slugA: 'delhi-sultanate', slugB: 'mongol-empire' },
     { title: 'Mughal Empire ↔ European Renaissance', slugA: 'mughal-empire', slugB: 'european-renaissance' },
     { title: 'Maratha Empire ↔ French Revolution', slugA: 'maratha-empire', slugB: 'french-revolution' },
-    { title: 'Freedom Struggle ↔ World Wars', slugA: 'modern-indian-history', slugB: 'world-wars-era' },
+    { title: 'Freedom Struggle ↔ World Wars', slugA: 'indian-national-movement', slugB: 'world-wars-era' },
     { title: 'Post-Independence ↔ Cold War & Space Race', slugA: 'post-independence-india', slugB: 'cold-war-space-race' },
+    { title: 'Post-Independence ↔ AI Revolution', slugA: 'post-independence-india', slugB: 'llm-history-generative-ai-revolution' },
   ];
+
+  const handleSelectPair = (pair: { slugA: string; slugB: string }) => {
+    const tA = findTimeline(pair.slugA);
+    const tB = findTimeline(pair.slugB);
+    if (tA) setSelectedSlugA(tA.slug || tA.id);
+    if (tB) setSelectedSlugB(tB.slug || tB.id);
+  };
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-fade-in">
@@ -566,15 +589,17 @@ export const ComparisonPicker: React.FC<ComparisonPickerProps> = ({
             className="w-full flex items-center gap-2 overflow-x-auto py-1 px-1 [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden scroll-smooth select-none"
           >
             {curatedPairs.map((pair) => {
-              const isSelected = selectedSlugA === pair.slugA && selectedSlugB === pair.slugB;
+              const isSelected =
+                (selectedSlugA === pair.slugA ||
+                  (pair.slugA === 'indian-national-movement' && selectedSlugA === 'modern-indian-history') ||
+                  (pair.slugA === 'post-independence-india' && selectedSlugA === 'post-independence-and-republic')) &&
+                (selectedSlugB === pair.slugB ||
+                  (pair.slugB === 'post-independence-india' && selectedSlugB === 'post-independence-and-republic'));
               return (
                 <button
                   key={pair.title}
                   type="button"
-                  onClick={() => {
-                    setSelectedSlugA(pair.slugA);
-                    setSelectedSlugB(pair.slugB);
-                  }}
+                  onClick={() => handleSelectPair(pair)}
                   className={`whitespace-nowrap shrink-0 text-xs font-mono px-3 py-1.5 rounded-full border transition-all cursor-pointer ${
                     isSelected
                       ? 'bg-white text-black border-white font-medium shadow-sm'

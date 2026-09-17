@@ -58,7 +58,15 @@ export const EventDetailDrawer: React.FC<EventDetailDrawerProps> = ({
           <div className="flex items-center justify-between gap-3 text-xs text-[#71717a] mb-8 font-mono flex-wrap">
             <div className="flex items-center gap-2.5 flex-wrap">
               <span className="bg-[#121216] border border-[#1f1f26] px-2.5 py-0.5 rounded-full text-[#d4d4d8]">
-                {event.displayDate}
+                {event.displayDate ? (
+                  /^\d{1,4}$/.test(event.displayDate.trim())
+                    ? `${event.displayDate.trim()} CE`
+                    : event.displayDate
+                ) : (
+                  event.year != null
+                    ? (event.year < 0 ? `${Math.abs(event.year)} BCE` : `${event.year} CE`)
+                    : '—'
+                )}
               </span>
               {event.datePrecision && event.datePrecision !== 'YEAR_ONLY' && (
                 <span className="text-[10px] text-[#71717a] border border-[#1a1a20] px-2 py-0.5 rounded-full">

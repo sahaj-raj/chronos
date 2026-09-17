@@ -34,11 +34,20 @@ public class ChroniclesApplication {
     @Bean
     public CommandLineRunner initialDatabaseSeeder(TimelineService timelineService, EventRepository eventRepository) {
         return args -> {
-            if (eventRepository.count() == 0) {
-                log.info("Startup check: database has 0 records. Initiating one-time seed...");
-                timelineService.seedInitialTimelines();
-            } else {
-                log.info("Startup check: database already contains {} timeline events.", eventRepository.count());
+            try {
+                var placeholders = eventRepository.findAll().stream()
+                        .filter(e -> {
+                            String t = e.getTopic() != null ? e.getTopic().toLowerCase().trim() : "";
+                            return t.equals("ancient-india") || t.equals("medieval-india") 
+                                || t.equals("modern-india") || t.equals("general-history");
+                        })
+                        .toList();
+                if (!placeholders.isEmpty()) {
+                    eventRepository.deleteAll(placeholders);
+                    log.info("Purged {} legacy placeholder records from repository.", placeholders.size());
+                }
+            } catch (Exception e) {
+                log.warn("Placeholder cleanup check skipped: {}", e.getMessage());
             }
         };
     }
