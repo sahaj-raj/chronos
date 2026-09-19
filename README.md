@@ -1,5 +1,4 @@
 # Chronicles — Interactive Historical Timeline Engine
-trychronos.vercel.app
 
 Chronicles is a full-stack historical timeline application that lets users explore curated historical timelines, compare different historical periods side-by-side, and dynamically generate new timelines for any topic using the Google Gemini AI API.
 
